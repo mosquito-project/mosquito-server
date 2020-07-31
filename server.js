@@ -1,4 +1,5 @@
 require('dotenv').config({silent: true});
+const list_geocode = require('./lib/municipios.json');
 
 const express = require('express');
 const bodyParser = require('body-parser');
@@ -7,8 +8,21 @@ const assistant = require('./lib/assistant.js');
 const geocode = require('./lib/geocode.js');
 const weather = require('./lib/weather.js');
 const infodengue = require('./lib/infodengue.js');
+const forecast = require('./lib/forecast.js');
 
 const port = process.env.PORT || 3000;
+
+const getCodeIBGE = ( name ) => {
+  const target_name = name.toLowerCase();
+  for( var i = 0; i < list_geocode.length; i++)
+  {
+      if( target_name === list_geocode[i]['nome'].toLowerCase())
+      {
+          return list_geocode[i]['codigo_ibge'];
+      }
+  }
+  return null;
+}
 
 const app = express();
 app.use(bodyParser.json());
@@ -36,6 +50,22 @@ app.get('/', (req, res) => {
   testConnection().then(status => res.json({ status: status }));
 });
 
+app.get('/weather/br', async(req, res) => {
+  const target_query = req.query.target_query;
+  if( target_query != null )
+  {
+    try {
+      const result = await weather.fromQuery(target_query);
+      res.send(result)
+    } catch (error) {
+      res.send({});
+    }
+  }
+  else{
+    res.send({})
+  }
+});
+
 app.get('/weather', async(req, res) => {
   var is_number = /^(-?\d+\.\d+)$|^(-?\d+)$/;
   const lat = req.query.lat;
@@ -55,8 +85,41 @@ app.get('/weather', async(req, res) => {
     }
 });
 
+app.get('/forecast', async(req, res) => {
+  var is_number = /^(-?\d+\.\d+)$|^(-?\d+)$/;
+  const temp = req.query.temp;
+  const population = req.query.population;
+  if( temp && is_number.test(temp) &&
+  population && is_number.test(population))
+    {
+      try {
+        const result = await forecast.forecast(temp, population);
+        res.send(result)
+      } catch (error) {
+        res.send({});
+      }
+    }
+    else{
+      res.send({});
+    }
+});
+
 app.get('/dengue', async(req, res) => {
   const geocode= req.query.geocode
+  if( geocode != null){
+    try {
+        const result = await infodengue.fromGeocode( geocode );
+        res.send(result)
+    } catch (error) {
+      res.send([]);
+    }
+  }else{
+    res.send([]);
+  }
+});
+
+app.get('/dengue/br', async(req, res) => {
+  const geocode= getCodeIBGE(`${req.query.place}`)
   if( geocode != null){
     try {
         const result = await infodengue.fromGeocode( geocode );
