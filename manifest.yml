@@ -1,0 +1,7 @@
+applications:
+- name: solution-mosquito-server
+  random-route: true
+  command: npm start
+  path: .
+  memory: 256M
+  instances: 1
